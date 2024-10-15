@@ -97,6 +97,48 @@ Installation instructions can be found in the [repo](https://github.com/flightct
 
 Instructions for managing fleets can be found [here](https://github.com/flightctl/flightctl/blob/main/docs/user/managing-fleets.md) while for managing devices are available [here](https://github.com/flightctl/flightctl/blob/main/docs/user/managing-devices.md). One of the benefits of using Edge Management together with ACM is the ability to enroll devices running Red Hat Device Edge seamlessly.
 
+## Openshift Cluster API Operator
+
+The OpenShift Cluster API Operator is a Kubernetes Operator built to enable cluster administrators to manage the lifecycle of Cluster API providers. Specifically, it supports lifecycle management of ROSA Hosted Control Plane (HCP) clusters within a HUB/MCE cluster using a declarative approach. Its goal is to enhance the user experience in deploying and managing ROSA HCP (and ARO HCP in future), simplifying daily tasks and streamlining automation workflows through GitOps.
+
+OpenShift Cluster API Operator helm chart uses the redhat-registry container images to deploy the cluster-api-operator, cluster-api and cluster-api-aws-providers. 
+
+#### Note:
+
+As constrain for the OpenShift Cluster API Operator helm chart devPreview release; It is not supported to use the MCE (HyperShift) operator to provision a host control plane cluster while using the OCP cluster API operator helm chart.
+
+### Installation
+Add CAPI Operator & cert manager helm repository:
+```
+$ helm repo add capi-operator https://raw.githubusercontent.com/openshift/cluster-api-operator/refs/heads/main/openshift
+$ helm repo add jetstack https://charts.jetstack.io --force-update
+$ helm repo update
+```
+Install cert manager:
+```
+$ helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true
+```
+Follow the instructions below to create the AWS credentials environment variable:
+```
+$ export AWS_REGION=us-east-1 
+$ export AWS_ACCESS_KEY_ID=<your-access-key>
+$ export AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
+$ export AWS_SESSION_TOKEN=<session-token> # If you are using Multi-Factor Auth.
+$ export AWS_B64ENCODED_CREDENTIALS=$(clusterawsadm bootstrap credentials encode-as-profile|base64 -w0)
+$ echo $AWS_B64ENCODED_CREDENTIALS
+```
+Install the OpenShift Cluster-api-operator
+```
+$ helm upgrade --install capi-operator capi-operator/cluster-api-operator --create-namespace -n capi-operator-system --set awsEncodedCredentials=$AWS_B64ENCODED_CREDENTIALS
+```
+#### Note:
+To set the RedHat OpenShift credentials at the cluster-api-aws-provider visit https://console.redhat.com/openshift/token to retrieve your API authentication token. Then run the helm install command with the redhat credentials token defined as below.
+```
+$ helm upgrade --install capi-operator capi-operator/cluster-api-operator --create-namespace -n capi-operator-system --set awsEncodedCredentials=$AWS_B64ENCODED_CREDENTIALS --set ocmToken=<set-redhat-api-credentials-token>
+```
+### Usage
+The OCP Cluster API Operator deploys the main components (CAPI & CAPA deployments) that allows provisioning ROSA HCP clusters. Follow the [ROSA documentation](https://cluster-api-aws.sigs.k8s.io/topics/rosa/creating-a-cluster) to provision a ROSA-HCP cluster. For troubleshooting the OCP Cluster API Operator follow the docunmentation [here](https://github.com/openshift/cluster-api-operator/blob/main/openshift/README.md)
+
 # Graduated features
 
 ### Hosted Control Planes with MCE (MCE 2.5)
